@@ -34,15 +34,15 @@ matches : Regex U8, Str -> Bool
 matches = \regex, str ->
     isNullable (deriveWord regex (Str.toUtf8 str))
 
-deriveWord : Regex a, List a -> Regex a | a has Eq
+deriveWord : Regex a, List a -> Regex a where a implements Eq
 deriveWord = \regex, word ->
     when List.first word is
         Err ListWasEmpty -> regex
         Ok symbol ->
-            rest = List.dropFirst word
+            rest = List.dropFirst word 1
             regex |> deriveSymbol symbol |> deriveWord rest
 
-deriveSymbol : Regex a, a -> Regex a | a has Eq
+deriveSymbol : Regex a, a -> Regex a where a implements Eq
 deriveSymbol = \regex, symbol ->
     when regex is
         Fail -> Fail
@@ -83,7 +83,7 @@ isNullable = \regex ->
 
         Star _ -> Bool.true
 
-simplify : Regex (Num a) -> Regex (Num a) | a has Eq
+simplify : Regex (Num a) -> Regex (Num a) where a implements Eq
 simplify = \regex ->
     when regex is
         Fail -> Fail
@@ -101,11 +101,13 @@ simplify = \regex ->
                         simplify (OneOf simpleRegex1 simpleRegex2)
                     else
                         OneOf simpleRegex1 simpleRegex2
+
                 Gt ->
                     if simpleRegex1 != regex1 || simpleRegex2 != regex2 then
                         simplify (OneOf simpleRegex2 simpleRegex1)
                     else
                         OneOf simpleRegex2 simpleRegex1
+
         Pair _ Fail -> Fail
         Pair Fail _ -> Fail
         Pair regex1 Empty -> simplify regex1
@@ -117,6 +119,7 @@ simplify = \regex ->
                 simplify (Pair simpleRegex1 simpleRegex2)
             else
                 Pair simpleRegex1 simpleRegex2
+
         Star Fail -> Fail
         Star Empty -> Empty
         Star (Star regex1) -> simplify (Star regex1)
@@ -142,11 +145,13 @@ compare = \regex1, regex2 ->
             when regex2 is
                 Fail -> Eq
                 _ -> Lt
+
         Empty ->
             when regex2 is
                 Fail -> Gt
                 Empty -> Eq
                 _ -> Lt
+
         Symbol symbol1 ->
             when regex2 is
                 Fail | Empty -> Gt
@@ -157,7 +162,9 @@ compare = \regex1, regex2 ->
                         Gt
                     else
                         Eq
+
                 _ -> Lt
+
         OneOf regex11 regex12 ->
             when regex2 is
                 Fail | Empty | Symbol _ -> Gt
@@ -166,7 +173,9 @@ compare = \regex1, regex2 ->
                         Lt -> Lt
                         Gt -> Gt
                         Eq -> compare regex12 regex22
+
                 _ -> Lt
+
         Pair regex11 regex12 ->
             when regex2 is
                 Fail | Empty | Symbol _ | OneOf _ _ -> Gt
@@ -175,7 +184,9 @@ compare = \regex1, regex2 ->
                         Lt -> Lt
                         Gt -> Gt
                         Eq -> compare regex12 regex22
+
                 _ -> Lt
+
         Star regex11 ->
             when regex2 is
                 Fail | Empty | Symbol _ | OneOf _ _ | Pair _ _ -> Gt

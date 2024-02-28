@@ -1,6 +1,6 @@
 app "regex"
     packages {
-        cli: "https://github.com/roc-lang/basic-cli/releases/download/0.3.2/tE4xS_zLdmmxmHwHih9kHWQ7fsXtJr7W7h3425-eZFk.tar.br",
+        cli: "https://github.com/roc-lang/basic-cli/releases/download/0.8.1/x8URkvfyi9I0QhmVG98roKBUs_AZRkLFwFJVJ3942YA.tar.br",
         regex: "../package/main.roc",
     }
     imports [
@@ -11,14 +11,14 @@ app "regex"
     ]
     provides [main] to cli
 
-main : Task {} []
+# main : Task {} []
 main =
     {} <- Stdout.line "Start." |> Task.await
     {} <- Stdout.line "-----------" |> Task.await
-    {} <- Task.await task0
-    {} <- Stdout.line "-----------" |> Task.await
-    {} <- Task.await task1
-    {} <- Stdout.line "-----------" |> Task.await
+    _ <- Task.await task0
+    _ <- Stdout.line "-----------" |> Task.await
+    _ <- Task.await task1
+    _ <- Stdout.line "-----------" |> Task.await
     {} <- Task.await task2
     {} <- Stdout.line "-----------" |> Task.await
     {} <- Task.await task3
@@ -36,7 +36,7 @@ main =
 task0 : Task {} []
 task0 =
     regex = ""
-    {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
+    {} <- Stdout.line "Regex: '$(regex)'" |> Task.await
     when Regex.fromStr regex is
         Ok regex1 ->
             {} <- Task.await
@@ -54,14 +54,14 @@ task0 =
                             Stdout.line "Didn't match 'a'"
                     )
 
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task1 : Task {} []
+task1 : Task {} *
 task1 =
     regex = "abc"
-    {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
+    {} <- Stdout.line "Regex: '$(regex)'" |> Task.await
     when Regex.fromStr regex is
         Ok regex1 ->
             {} <- Task.await
@@ -79,14 +79,14 @@ task1 =
                             Stdout.line "Didn't match 'abd'"
                     )
 
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task2 : Task {} []
+task2 : Task {} *
 task2 =
     regex = "a*****"
-    {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
+    {} <- Stdout.line "Regex: '$(regex)'" |> Task.await
     when Regex.fromStr regex is
         Ok regex1 ->
             {} <- Task.await
@@ -124,14 +124,14 @@ task2 =
                         else
                             Stdout.line "Didn't match 'aaaaab'"
                     )
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task3 : Task {} []
+task3 : Task {} *
 task3 =
     regex = "a|b"
-    {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
+    {} <- Stdout.line "Regex: '$(regex)'" |> Task.await
     when Regex.fromStr regex is
         Ok regex1 ->
             {} <- Task.await
@@ -162,11 +162,11 @@ task3 =
                         else
                             Stdout.line "Didn't match 'ab'"
                     )
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task4 : Task {} []
+task4 : Task {} *
 task4 =
     regex = "a+++++"
     {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
@@ -200,11 +200,11 @@ task4 =
                         else
                             Stdout.line "Didn't match 'b'"
                     )
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task5 : Task {} []
+task5 : Task {} *
 task5 =
     regex = "a?????"
     {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
@@ -238,11 +238,11 @@ task5 =
                         else
                             Stdout.line "Didn't match 'b'"
                     )
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task6 : Task {} []
+task6 : Task {} *
 task6 =
     regex = "[abc]"
     {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
@@ -290,11 +290,11 @@ task6 =
                         else
                             Stdout.line "Didn't match 'aa'"
                     )
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-task7 : Task {} []
+task7 : Task {} *
 task7 =
     regex = "[\\[\\]]"
     {} <- Stdout.line "Regex: '\(regex)'" |> Task.await
@@ -328,41 +328,19 @@ task7 =
                         else
                             Stdout.line "Didn't match '[]'"
                     )
-            Task.succeed {}
+            Task.ok {}
 
         Err err -> handleRegexParseError err
 
-handleRegexParseError : Regex.ParseError -> Task {} []
+handleRegexParseError : Regex.ParseError -> Task {} *
 handleRegexParseError = \err ->
     when err is
         Expected want Got got AtIndex index ->
-            msgMaybe =
-                part1 <-
-                    "Expected "
-                    |> Str.appendScalar (Num.intCast want)
-                    |> Result.try
-                part2 <- part1 |> Str.concat ", got " |> Str.appendScalar (Num.intCast got) |> Result.map
-                part2 |> Str.concat " at index " |> Str.concat (Num.toStr index)
-
-            msg =
-                when msgMaybe is
-                    Ok m -> m
-                    Err _ -> crash "Unreachable in err msg expected"
-
-            {} <- Stderr.line msg |> Task.await
+            {} <- Stderr.line "Expected $(byteToStr want), got $(byteToStr got) at index $(Num.toStr index)" |> Task.await
             Stderr.line "Error."
 
         ExpectedEnd Got got AtIndex index ->
-            msgMaybe =
-                part1 <- "Expected end of string, got " |> Str.appendScalar (Num.intCast got) |> Result.map
-                part1 |> Str.concat " at index " |> Str.concat (Num.toStr index)
-
-            msg =
-                when msgMaybe is
-                    Ok m -> m
-                    Err _ -> crash "Unreachable in err msg expectedEnd"
-
-            {} <- Stderr.line msg |> Task.await
+            {} <- Stderr.line "Expected end of string, got $(byteToStr got) at index $(Num.toStr index)" |> Task.await
             Stderr.line "Error."
 
         EscapeAtEnd ->
@@ -372,6 +350,12 @@ handleRegexParseError = \err ->
 
         UnterminatedBracketGroup AtIndex index ->
             indexStr = Num.toStr index
-            msg = "Bracket group not terminated, started at index \(indexStr)"
+            msg = "Bracket group not terminated, started at index $(indexStr)"
             {} <- Stderr.line msg |> Task.await
             Stderr.line "Error."
+
+byteToStr : U8 -> Str
+byteToStr = \byte ->
+    when Str.fromUtf8 [byte] is
+        Err _ -> crash "Error converting $(Num.toStr byte) to a Str"
+        Ok str -> str

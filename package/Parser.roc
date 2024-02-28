@@ -4,14 +4,14 @@ interface Parser
         parse,
     ]
     imports [
-        InternalRegex.{ Regex }
+        InternalRegex.{ Regex },
     ]
 
 ParseError : [
-    Expected U8 [Got] U8 [AtIndex] Nat,
-    ExpectedEnd [Got] U8 [AtIndex] Nat,
+    Expected U8 [Got] U8 [AtIndex] U64,
+    ExpectedEnd [Got] U8 [AtIndex] U64,
     EscapeAtEnd,
-    UnterminatedBracketGroup [AtIndex] Nat,
+    UnterminatedBracketGroup [AtIndex] U64,
 ]
 
 parse : Str -> Result (Regex U8) ParseError
@@ -25,11 +25,9 @@ parse = \input ->
         Err ListWasEmpty -> Ok regexParsed
         Ok char -> Err (ExpectedEnd Got char AtIndex endParser.index)
 
-
-
 Parser a : {
     input : List a,
-    index : Nat,
+    index : U64,
 }
 
 init : Str -> Parser U8
@@ -46,7 +44,7 @@ regex = \parser ->
     if more newParser1 && peek newParser1 == '|' then
         newParser2 <- eat newParser1 '|' |> Result.try
         { newParser: newParser3, regex: regexParsed } <- regex newParser2 |> Result.map
-        { newParser: newParser3, regex: OneOf termParsed regexParsed}
+        { newParser: newParser3, regex: OneOf termParsed regexParsed }
     else
         Ok { newParser: newParser1, regex: termParsed }
 
@@ -95,6 +93,7 @@ base = \parser ->
             { newParser: newParser2, regex: regexParsed } <- regex newParser1 |> Result.try
             newParser3 <- eat newParser2 ')' |> Result.map
             { newParser: newParser3, regex: regexParsed }
+
         '[' ->
             helper : Parser U8, List U8 -> Result { newParser : Parser U8, chars : List U8 } ParseError
             helper = \helpParser, acc ->
@@ -117,6 +116,7 @@ base = \parser ->
             newParser1 <- eat parser '[' |> Result.try
             { newParser: newParser2, chars } <- helper newParser1 [] |> Result.map
             { newParser: newParser2, regex: List.walk chars Fail \state, char -> OneOf state (Symbol char) }
+
         '\\' ->
             newParser1 <- eat parser '\\' |> Result.try
             { newParser: newParser2, char: escaped } <-
@@ -124,6 +124,7 @@ base = \parser ->
                 |> Result.mapErr \_ -> EscapeAtEnd
                 |> Result.try
             Ok { newParser: newParser2, regex: Symbol escaped }
+
         _ ->
             { newParser: newParser1, char } =
                 when next parser is
@@ -134,10 +135,11 @@ base = \parser ->
 eat : Parser U8, U8 -> Result (Parser U8) ParseError
 eat = \parser, char ->
     if peek parser == char then
-        Ok { parser &
-            input: List.dropFirst parser.input,
-            index: parser.index + 1,
-        }
+        Ok
+            { parser &
+                input: List.dropFirst parser.input 1,
+                index: parser.index + 1,
+            }
     else
         Err (Expected char Got (peek parser) AtIndex (parser.index))
 
